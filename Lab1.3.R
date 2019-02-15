@@ -52,6 +52,9 @@ for(i in 1:length(tk))
   Datos[[i]] <- Bajar_Precios(Columns=cs, Ticker=tk[i], Fecha_In=fs[1], Fecha_Fn=fs[2])
 names(Datos) <- tk
 
+for(i in 1:length(tk)){
+  Datos[[i]]<-Datos[[i]][order(Datos[[i]][,1]), ]
+}
 
 
 for(i in 1:length(tk))
@@ -61,3 +64,45 @@ for(i in 1:length(tk))
 Rends <- xts(x = cbind(Datos[[1]]$adj_close_r, Datos[[2]]$adj_close_r, Datos[[3]]$adj_close_r),
              order.by = Datos[[1]]$date)[-1]
 names(Rends) <- tk
+
+
+Port1 <- portfolio.spec(assets = tk)
+
+#Restricción1
+Port1 <- add.constraint(portfolio = Port1, type = "full_investment")
+
+#Restricción 2: Límite inferior y superior para el valor de los pesos de cada asset
+Port1 <- add.constraint(portfolio = Port1, type = "box",
+                        min = c(.01,.01,.01,.01,.01,.01,.01,.01,.01,.01,.01,.01,.01,.01,.01,.01,.01,.01,.01,.01,.01,.01,.01,.01,.01,.01,.01,.01,.01,.01), 
+                        max = c(0.7,.07,.07,.07,.07,.07,.07,.07,.07,.07,.07,.07,.07,.07,.07,.07,.07,.07,.07,.07,.07,.07,.07,.07,.07,.07,.07,.07,.07,.07))
+
+Port1 <- add.objective(portfolio = Port1,type = "return", name = "mean")
+Port1 <- optimize.portfolio(R = Rends, portfolio = Port1, optimize_method = "random", trace = TRUE, 
+                            search_size = 50)
+
+Portafolios <- vector("list", length = length(Port1$random_portfolio_objective_results))
+
+for(i in 1:length(Port1$random_portfolio_objective_results)){
+  Portafolios[[i]]$Pesos <- Port1$random_portfolio_objective_results[[i]]$weights
+  Portafolios[[i]]$Medias <- Port1$random_portfolio_objective_results[[i]]$objective_measures$mean
+  Portafolios[[i]]$Vars <- var.portfolio(R = Port1$R, weights = Portafolios[[i]]$Pesos)
+  names(Portafolios[[i]]$Medias) <- NULL
+  
+}
+
+df_Portafolios <- data.frame(matrix(nrow = length(Port1$random_portolio_objective_results), ncol = 3, data = 0))
+colnames(df_Portafolios) <- c("Rend", "Var", "Clase")
+
+for(i in 1:length(Port1$random_portfolio_objective_results)){
+  df_Portafolios$Rend[i] <- round(Portafolios[[i]]$Medias*252,4)
+  df_Portafolios$Var[i] <- round(sqrt(Portafolios[[i]]$Vars)*sqrt(252),4)
+  df_Portafolios$Clase[i] <-"No-Frontera"
+  
+  for(k in 1:length(tk)){
+    df_Portafolios[i, paste("Peso_", tk[k], sep = " ")] <- Portafolios[[i]]$Pesos[k]
+    df_Portafolios[i, paste("Titulos_ini_", tk[k], sep = " ")] <- (Capital_Inicial*Portafolios[[i]]$Pesos[k])%/%Datos[[k]]$adj_close[1]
+    
+  }
+}
+
+
