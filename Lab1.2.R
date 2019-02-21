@@ -1,4 +1,4 @@
-#Laboratorio 1
+#Laboratorio 1 Hola Karen
 
 # Remover todos los objetos del "Environment"
 rm(list = ls())
